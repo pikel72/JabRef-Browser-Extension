@@ -382,6 +382,7 @@ export default defineBackground({
       await browser.runtime.sendMessage({
         type: "runTranslators",
         url: tab.url,
+        tabId: tab.id,
         pageURL: pageSnapshot?.url,
         html: pageSnapshot?.html,
         title: pageSnapshot?.title,
@@ -476,8 +477,24 @@ export default defineBackground({
 
           return { ok: true };
         } else if (message.type === "COHTTP.request") {
-          const { method, url, options } = message;
+          const { method, url, options, tabId, documentURL } = message;
           console.debug(`JabRef: COHTTP request in background.js: ${method} ${url} %o`, options);
+          if (Number.isInteger(tabId) && documentURL) {
+            try {
+              const requestOrigin = new URL(url).origin;
+              const documentOrigin = new URL(documentURL).origin;
+              if (requestOrigin === documentOrigin) {
+                return await browser.tabs.sendMessage(tabId, {
+                  type: "pageFetch",
+                  method,
+                  url,
+                  options,
+                });
+              }
+            } catch (pageFetchError) {
+              console.warn("JabRef: pageFetch failed, falling back to background request", pageFetchError);
+            }
+          }
           const xhr = await Zotero.HTTP.request(method, url, options);
           // From upstream: https://github.com/zotero/zotero-connectors/blob/ea060a0aa2fea1267049b5fc880e53aa6c915eeb/src/common/messages.js#L302-L316
           let result = {

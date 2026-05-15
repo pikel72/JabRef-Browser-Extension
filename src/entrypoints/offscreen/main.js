@@ -9,6 +9,8 @@ if (typeof browser === "undefined" && typeof chrome !== "undefined") {
 // The offscreen document lacks declarativeNetRequest and other extension-only APIs
 // that the Zotero HTTP module expects; routing through the service worker avoids this.
 Zotero.isInject = true;
+let currentTranslationTabId = null;
+let currentTranslationURL = null;
 Zotero.COHTTP = {
   request: async (method, url, options = {}) => {
     const response = await browser.runtime.sendMessage({
@@ -16,6 +18,8 @@ Zotero.COHTTP = {
       method,
       url,
       options,
+      tabId: currentTranslationTabId,
+      documentURL: currentTranslationURL,
     });
     response.getAllResponseHeaders = () => response.responseHeaders;
     response.getResponseHeader = function (name) {
@@ -72,6 +76,8 @@ browser.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
   if (!msg || msg.type !== "runTranslators") return;
   const { url, pageURL, translatorsInfo } = msg;
   const translationURL = pageURL || url;
+  currentTranslationTabId = msg.tabId || null;
+  currentTranslationURL = translationURL;
 
   const fail = async (step, err) => {
     await browser.runtime.sendMessage({ type: "offscreenResult", url, error: `[${step}] ${String(err)}\n${err?.stack || ""}` });

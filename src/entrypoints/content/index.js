@@ -21,6 +21,35 @@ export default defineContentScript({
           };
         }
 
+        if (msg?.type === "pageFetch") {
+          const headers = { ...(msg.options?.headers || {}) };
+          delete headers["User-Agent"];
+          delete headers["user-agent"];
+          delete headers["Referer"];
+          delete headers["referer"];
+          const response = await fetch(msg.url, {
+            method: msg.method || "GET",
+            headers,
+            body: msg.options?.body,
+            credentials: "include",
+            referrer: document.location.href,
+          });
+          const responseText = await response.text();
+          const responseHeaders = Array.from(response.headers.entries())
+            .map(([key, value]) => `${key}: ${value}`)
+            .join("\r\n");
+          return {
+            ok: true,
+            response: responseText,
+            responseText,
+            responseType: "text",
+            status: response.status,
+            statusText: response.statusText,
+            responseHeaders,
+            responseURL: response.url,
+          };
+        }
+
         Zotero.isInject = true;
         Zotero.COHTTP = {
           request: async (method, url, options = {}) => {
