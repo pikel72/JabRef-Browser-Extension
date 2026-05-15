@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { addPublicAssets, defineWxtModule } from "wxt/modules";
 
-const SANDBOX_IMPORT = `import { ZU, Zotero, Z, text, requestJSON, requestText, attr } from "/sandbox.js";\n`;
+const SANDBOX_IMPORT = `import { ZU, Zotero, Z, text, innerText, attr, request, requestJSON, requestText, requestDocument, xpath, xpathText, DOMParser } from "/sandbox.js";\n`;
 
 const EXPORT_CANDIDATES = [
   "detectWeb",
@@ -69,6 +69,23 @@ function isFunctionDefined(code: string, fnName: string): boolean {
   return patterns.some((p) => p.test(code));
 }
 
+function removeDuplicateFrameworkWrappers(code: string): string {
+  for (const fn of EXPORT_CANDIDATES) {
+    const wrapper = `function ${fn}(doc, url) { return FW.${fn}(doc, url); }`;
+    let seen = false;
+    code = code
+      .split("\n")
+      .filter((line) => {
+        if (line.trim() !== wrapper) return true;
+        if (seen) return false;
+        seen = true;
+        return true;
+      })
+      .join("\n");
+  }
+  return code;
+}
+
 function patchTranslator(sourceCode: string): string {
   if (sourceCode.includes("from \"/sandbox.js\"")) {
     // Already has sandbox import — ensure it's at the top
@@ -96,6 +113,8 @@ function patchTranslator(sourceCode: string): string {
       sourceCode = before + exportLine + after;
     }
   }
+
+  sourceCode = removeDuplicateFrameworkWrappers(sourceCode);
 
   // Remove any existing generated export blocks and add fresh ones
   // Remove old exports object if any

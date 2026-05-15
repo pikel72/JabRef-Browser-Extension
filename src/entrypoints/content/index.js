@@ -12,6 +12,15 @@ export default defineContentScript({
           return { ok: true };
         }
 
+        if (msg?.type === "getPageSnapshot") {
+          return {
+            ok: true,
+            url: document.location.href,
+            title: document.title,
+            html: document.documentElement?.outerHTML || "",
+          };
+        }
+
         Zotero.isInject = true;
         Zotero.COHTTP = {
           request: async (method, url, options = {}) => {

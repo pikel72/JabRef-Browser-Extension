@@ -78,17 +78,22 @@ function createTranslator(info) {
 
 browser.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
   if (!msg || msg.type !== "runTranslators") return;
-  const { url, translatorsInfo } = msg;
+  const { url, pageURL, translatorsInfo } = msg;
+  const translationURL = pageURL || url;
 
   const fail = async (step, err) => {
     await browser.runtime.sendMessage({ type: "offscreenResult", url, error: `[${step}] ${String(err)}\n${err?.stack || ""}` });
   };
 
   try {
-    let resp;
-    try { resp = await fetch(url, { credentials: "omit" }); } catch (e) { return fail("fetch", e); }
     let html;
-    try { html = await resp.text(); } catch (e) { return fail("text", e); }
+    if (typeof msg.html === "string" && msg.html.length) {
+      html = msg.html;
+    } else {
+      let resp;
+      try { resp = await fetch(url, { credentials: "include" }); } catch (e) { return fail("fetch", e); }
+      try { html = await resp.text(); } catch (e) { return fail("text", e); }
+    }
     if (!Array.isArray(translatorsInfo) || translatorsInfo.length === 0) {
       return fail("validate", new Error("No translators"));
     }
@@ -97,11 +102,11 @@ browser.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
     try {
       const parser = new DOMParser();
       const rawDoc = parser.parseFromString(html, "text/html");
-      parsedDocument = withDocumentLocation(rawDoc, url);
+      parsedDocument = withDocumentLocation(rawDoc, translationURL);
     } catch (e) { return fail("parse", e); }
 
     let translateEngine;
-    try { translateEngine = await createTranslateEngine(url); } catch (e) { return fail("createEngine", e); }
+    try { translateEngine = await createTranslateEngine(translationURL); } catch (e) { return fail("createEngine", e); }
 
     const translators = translatorsInfo.map(createTranslator);
 

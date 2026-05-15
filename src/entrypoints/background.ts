@@ -372,9 +372,19 @@ export default defineBackground({
       }
       console.log("JabRef: Routing translator execution through offscreen document for tab %o", tab);
       const exportMode = await getConversionMode();
+      let pageSnapshot = null;
+      try {
+        await initContentScript(tab.id);
+        pageSnapshot = await browser.tabs.sendMessage(tab.id, { type: "getPageSnapshot" });
+      } catch (e) {
+        console.warn("JabRef: Failed to capture page HTML, offscreen will fetch URL instead", e);
+      }
       await browser.runtime.sendMessage({
         type: "runTranslators",
         url: tab.url,
+        pageURL: pageSnapshot?.url,
+        html: pageSnapshot?.html,
+        title: pageSnapshot?.title,
         translatorsInfo: info.translatorsInfo,
         exportMode,
       });
