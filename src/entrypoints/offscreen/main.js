@@ -74,6 +74,29 @@ function createTranslator(info) {
   return translator;
 }
 
+async function prepareForExport(items) {
+  const { takeSnapshots } = await browser.storage.sync.get({ takeSnapshots: false });
+
+  for (const item of items) {
+    if (!Array.isArray(item.attachments)) continue;
+    for (const attachment of item.attachments) {
+      const isLink =
+        attachment.mimeType === "text/html" || attachment.mimeType === "application/xhtml+xml";
+      if (isLink && attachment.snapshot !== false) {
+        if (takeSnapshots && attachment.url) {
+          attachment.localPath = attachment.url;
+        }
+      } else if (attachment.url) {
+        attachment.localPath = attachment.url;
+      }
+    }
+
+    if (item.accessDate) {
+      item.accessDate = new Date().toISOString();
+    }
+  }
+}
+
 browser.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
   if (!msg || msg.type !== "runTranslators") return;
   const { url, pageURL, translatorsInfo } = msg;
@@ -123,7 +146,10 @@ browser.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
     const mode = msg.exportMode || "bibtex";
 
     let bibtexString;
-    try { bibtexString = await exportItems(result.items, mode); } catch (e) { return fail("export", e); }
+    try {
+      await prepareForExport(result.items);
+      bibtexString = await exportItems(result.items, mode);
+    } catch (e) { return fail("export", e); }
 
     await browser.runtime.sendMessage({ type: "offscreenResult", url, items: result.items, bibtexString, mode });
     sendResponse({ ok: true });
