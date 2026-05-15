@@ -74,20 +74,31 @@ function createTranslator(info) {
   return translator;
 }
 
-async function prepareForExport(items) {
+function resolveAttachmentURL(url, baseURL) {
+  try {
+    return new URL(url, baseURL).href;
+  } catch {
+    return url;
+  }
+}
+
+async function prepareForExport(items, baseURL) {
   const { takeSnapshots } = await browser.storage.sync.get({ takeSnapshots: false });
 
   for (const item of items) {
     if (!Array.isArray(item.attachments)) continue;
     for (const attachment of item.attachments) {
+      const attachmentURL = attachment.url
+        ? resolveAttachmentURL(attachment.url, item.url || baseURL)
+        : null;
       const isLink =
         attachment.mimeType === "text/html" || attachment.mimeType === "application/xhtml+xml";
       if (isLink && attachment.snapshot !== false) {
-        if (takeSnapshots && attachment.url) {
-          attachment.localPath = attachment.url;
+        if (takeSnapshots && attachmentURL) {
+          attachment.localPath = attachmentURL;
         }
-      } else if (attachment.url) {
-        attachment.localPath = attachment.url;
+      } else if (attachmentURL) {
+        attachment.localPath = attachmentURL;
       }
     }
 
@@ -147,7 +158,7 @@ browser.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
 
     let bibtexString;
     try {
-      await prepareForExport(result.items);
+      await prepareForExport(result.items, translationURL);
       bibtexString = await exportItems(result.items, mode);
     } catch (e) { return fail("export", e); }
 

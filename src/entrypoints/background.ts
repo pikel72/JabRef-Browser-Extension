@@ -396,28 +396,39 @@ export default defineBackground({
       return cfg.exportMode || "bibtex";
     }
 
-    async function prepareForExport(items) {
+    function resolveAttachmentURL(url, baseURL) {
+      try {
+        return new URL(url, baseURL).href;
+      } catch {
+        return url;
+      }
+    }
+
+    async function prepareForExport(items, baseURL) {
       const { takeSnapshots } = await browser.storage.sync.get({ takeSnapshots: false });
 
       for (var i = 0; i < items.length; i++) {
         var item = items[i];
         for (var j = 0; j < item.attachments.length; j++) {
           var attachment = item.attachments[j];
+          var attachmentURL = attachment.url
+            ? resolveAttachmentURL(attachment.url, item.url || baseURL)
+            : null;
 
           var isLink =
             attachment.mimeType === "text/html" || attachment.mimeType === "application/xhtml+xml";
           if (isLink && attachment.snapshot !== false) {
             // Snapshot
-            if (takeSnapshots && attachment.url) {
-              attachment.localPath = attachment.url;
+            if (takeSnapshots && attachmentURL) {
+              attachment.localPath = attachmentURL;
             } else {
               // Ignore
             }
           } else {
             // Normal file
             // Pretend we downloaded the file since otherwise it is not exported
-            if (attachment.url) {
-              attachment.localPath = attachment.url;
+            if (attachmentURL) {
+              attachment.localPath = attachmentURL;
             }
           }
         }
@@ -523,7 +534,7 @@ export default defineBackground({
 
           // Fallback: export in background (older offscreen code)
           const conversionMode = await getConversionMode();
-          await prepareForExport(items);
+          await prepareForExport(items, message.url);
           await browser.runtime.sendMessage({ onConvertToBibtex: "convertStarted" });
           const bib = await exportItems(items, conversionMode);
           console.debug("JabRef: Exported BibTeX: %o", bib);
