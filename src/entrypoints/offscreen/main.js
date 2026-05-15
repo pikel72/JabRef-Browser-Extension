@@ -48,6 +48,8 @@ function withDocumentLocation(doc, url) {
   const locationUrl = new URL(url);
   try { doc.location = locationUrl; } catch (_) {}
   try { doc.URL = url; } catch (_) {}
+  try { Object.defineProperty(doc, "documentURI", { get: () => url, configurable: true }); } catch (_) {}
+  try { Object.defineProperty(doc, "baseURI", { get: () => url, configurable: true }); } catch (_) {}
   if (doc.location) return doc;
   try { Object.defineProperty(doc, "location", { get: () => locationUrl, configurable: true }); } catch (_) {}
   try { Object.defineProperty(doc, "URL", { get: () => url, configurable: true }); } catch (_) {}

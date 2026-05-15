@@ -16,6 +16,14 @@ export let xpath;
 export let xpathText;
 export let DOMParser;
 
+export function documentHref(doc) {
+  return doc?.location?.href
+    || doc?.documentURI
+    || doc?.URL
+    || doc?.baseURI
+    || "";
+}
+
 export function setSandbox(sandbox) {
   const utilities = sandbox.ZU || sandbox.Zotero?.Utilities || {};
   ZU = sandbox.ZU;

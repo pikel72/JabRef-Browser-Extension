@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { addPublicAssets, defineWxtModule } from "wxt/modules";
 
-const SANDBOX_IMPORT = `import { ZU, Zotero, Z, text, innerText, attr, request, requestJSON, requestText, requestDocument, xpath, xpathText, DOMParser } from "/sandbox.js";\n`;
+const SANDBOX_IMPORT = `import { ZU, Zotero, Z, text, innerText, attr, request, requestJSON, requestText, requestDocument, xpath, xpathText, DOMParser, documentHref } from "/sandbox.js";\n`;
 
 const EXPORT_CANDIDATES = [
   "detectWeb",
@@ -86,6 +86,12 @@ function removeDuplicateFrameworkWrappers(code: string): string {
   return code;
 }
 
+function patchDocumentLocationAccess(code: string): string {
+  return code
+    .replace(/\b([A-Za-z_$][\w$]*)\.location\.href\b/g, "documentHref($1)")
+    .replace(/\b([A-Za-z_$][\w$]*)\.location\.toString\(\)/g, "documentHref($1)");
+}
+
 function patchTranslator(sourceCode: string): string {
   if (sourceCode.includes("from \"/sandbox.js\"")) {
     // Already has sandbox import — ensure it's at the top
@@ -115,6 +121,7 @@ function patchTranslator(sourceCode: string): string {
   }
 
   sourceCode = removeDuplicateFrameworkWrappers(sourceCode);
+  sourceCode = patchDocumentLocationAccess(sourceCode);
 
   // Remove any existing generated export blocks and add fresh ones
   // Remove old exports object if any
