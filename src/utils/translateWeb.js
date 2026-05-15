@@ -79,6 +79,9 @@ export let TranslateWeb = {
         translate.document = doc;
         translate.rootDocument = doc;
         translate.setLocation(location, location);
+        translate._getSandboxLocation = function () {
+          return this._parentTranslator?._sandboxLocation || location;
+        };
       } else {
         await translate.setDocument(doc);
       }
