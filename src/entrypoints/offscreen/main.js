@@ -103,7 +103,7 @@ browser.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
     const translators = translatorsInfo.map(createTranslator);
 
     let result;
-    try { result = await translateEngine.translate(parsedDocument, translators); } catch (e) { return fail("translate", e); }
+    try { result = await translateEngine.translate(parsedDocument, translators, translationURL); } catch (e) { return fail("translate", e); }
 
     if (!result?.items?.length) {
       await browser.runtime.sendMessage({ type: "offscreenResult", url, items: null });

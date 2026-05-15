@@ -72,10 +72,21 @@ export let TranslateWeb = {
       if (!doc) throw new Error(`TranslateWeb: No document provided for translation`);
     }
     // Support for "remote" translate where all these commands could potentially be async
+    if (doc) {
+      if (doc.location?.href) {
+        await translate.setDocument(doc);
+      } else if (location) {
+        translate.document = doc;
+        translate.rootDocument = doc;
+        translate.setLocation(location, location);
+      } else {
+        await translate.setDocument(doc);
+      }
+    }
+
     await Promise.all([
-      doc && translate.setDocument(doc),
       cookieSandbox && translate.setCookieSandbox(cookieSandbox),
-      location && translate.setLocation(location, location),
+      !doc && location && translate.setLocation(location, location),
       onSelect && translate.setHandler("select", onSelect),
       onItemSaving && translate.setHandler("itemSaving", onItemSaving),
       onDebug && translate.setHandler("debug", onDebug),

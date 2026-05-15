@@ -20,7 +20,7 @@ export async function createTranslateEngine(location) {
       const [matches] = await provider.getWebTranslatorsForLocation(location, location);
       return matches;
     },
-    translate: async (doc, translators) => {
+    translate: async (doc, translators, locationOverride = null) => {
       // Upstream: https://github.com/zotero/zotero-connectors/blob/ea060a0aa2fea1267049b5fc880e53aa6c915eeb/src/common/inject/pageSaving.js#L287-L291
       if (!translators || !translators.length) {
         throw new Error("No translators provided for translation");
@@ -39,7 +39,7 @@ export async function createTranslateEngine(location) {
       return await TranslateWeb.translate({
         doc,
         translate,
-        location: doc.location.href,
+        location: doc.location?.href || locationOverride || location,
         translators: translators.slice(),
         onSelect,
         onItemSaving,
