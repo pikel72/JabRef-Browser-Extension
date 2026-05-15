@@ -47,23 +47,15 @@ function withDocumentLocation(doc, url) {
   if (doc.location) return doc;
   try { Object.defineProperty(doc, "location", { get: () => locationUrl, configurable: true }); } catch (_) {}
   try { Object.defineProperty(doc, "URL", { get: () => url, configurable: true }); } catch (_) {}
-  if (doc.location) return doc;
-  const override = { location: locationUrl, URL: url, defaultView: null };
-  return new Proxy(override, {
-    get(_target, prop) {
-      if (prop in override) return override[prop];
-      const value = doc[prop];
-      if (typeof value === "function") {
-        const bound = value.bind(doc);
-        for (const key of Object.getOwnPropertyNames(value)) {
-          if (key === "name" || key === "length") continue;
-          try { bound[key] = value[key]; } catch (_) {}
-        }
-        return bound;
-      }
-      return value;
-    },
-  });
+  try {
+    let base = doc.querySelector("base[href]");
+    if (!base) {
+      base = doc.createElement("base");
+      doc.head?.prepend(base);
+    }
+    base.href = url;
+  } catch (_) {}
+  return doc;
 }
 
 function createTranslator(info) {
