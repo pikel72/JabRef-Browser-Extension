@@ -3,7 +3,7 @@ import { join } from "path";
 
 // Fix content script encoding for Edge/Chrome:
 // Escape raw control characters and U+FFFD in generated content scripts.
-const dirs = globSync(".output/edge-mv3");
+const dirs = globSync(".output/*-mv3");
 
 for (const dir of dirs) {
   const files = globSync("content-scripts/*.js", { cwd: dir });
