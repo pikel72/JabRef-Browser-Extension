@@ -379,6 +379,7 @@ export default defineBackground({
       } catch (e) {
         console.warn("JabRef: Failed to capture page HTML, offscreen will fetch URL instead", e);
       }
+      const { takeSnapshots } = await browser.storage.sync.get({ takeSnapshots: false });
       await browser.runtime.sendMessage({
         type: "runTranslators",
         url: tab.url,
@@ -388,6 +389,7 @@ export default defineBackground({
         title: pageSnapshot?.title,
         translatorsInfo: info.translatorsInfo,
         exportMode,
+        takeSnapshots: Boolean(takeSnapshots),
       });
     }
 

@@ -82,9 +82,7 @@ function resolveAttachmentURL(url, baseURL) {
   }
 }
 
-async function prepareForExport(items, baseURL) {
-  const { takeSnapshots } = await browser.storage.sync.get({ takeSnapshots: false });
-
+function prepareForExport(items, baseURL, takeSnapshots = false) {
   for (const item of items) {
     if (!Array.isArray(item.attachments)) continue;
     for (const attachment of item.attachments) {
@@ -158,7 +156,7 @@ browser.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
 
     let bibtexString;
     try {
-      await prepareForExport(result.items, translationURL);
+      prepareForExport(result.items, translationURL, Boolean(msg.takeSnapshots));
       bibtexString = await exportItems(result.items, mode);
     } catch (e) { return fail("export", e); }
 
