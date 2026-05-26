@@ -215,3 +215,7 @@ fabric.properties
 dist/
 test_cache/
 .env.submit
+
+# Local dev tools
+.deepseek/
+screenshots/
