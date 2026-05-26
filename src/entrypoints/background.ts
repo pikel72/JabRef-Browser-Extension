@@ -152,11 +152,18 @@ export default defineBackground({
       }
     }
 
-    async function evalInTab(tabsId, code) {
+    async function evalInTab(tabId, code) {
       try {
-        const result = await browser.tabs.executeScript(tabsId, {
-          code: code,
-        });
+        if (browser.scripting) {
+          const results = await browser.scripting.executeScript({
+            target: { tabId },
+            func: new Function(code),
+          });
+          const result = results?.[0]?.result;
+          console.log(`JabRef: code executed with result ${result}`);
+          return result;
+        }
+        const result = await browser.tabs.executeScript(tabId, { code });
         console.log(`JabRef: code executed with result ${result}`);
         return result;
       } catch (error) {
@@ -358,39 +365,60 @@ export default defineBackground({
       await initContentScript(tab.id);
     }
 
+    let keepAliveTimer = null;
+
+    function startKeepAlive() {
+      if (keepAliveTimer) return;
+      keepAliveTimer = setInterval(() => {
+        browser.runtime.sendMessage({ type: "keepAlive" }).catch(() => {});
+      }, 25000);
+    }
+
+    function stopKeepAlive() {
+      if (keepAliveTimer) {
+        clearInterval(keepAliveTimer);
+        keepAliveTimer = null;
+      }
+    }
+
     async function onPopupOpened(tab, info) {
       if (!hasTabId(tab)) {
         throw new Error("Invalid tab for popupOpened");
       }
       if (!info.translatorsInfo.length) throw new Error("No translator paths provided");
 
-      // Route through offscreen document - it has its own CSP allowing unsafe-eval,
-      // which the original Zotero SandboxManager requires.
-      const offscreenReady = await initOffscreenDocument();
-      if (!offscreenReady) {
-        throw new Error("Failed to initialize offscreen document for translator execution");
-      }
-      console.log("JabRef: Routing translator execution through offscreen document for tab %o", tab);
-      const exportMode = await getConversionMode();
-      let pageSnapshot = null;
+      startKeepAlive();
       try {
-        await initContentScript(tab.id);
-        pageSnapshot = await browser.tabs.sendMessage(tab.id, { type: "getPageSnapshot" });
-      } catch (e) {
-        console.warn("JabRef: Failed to capture page HTML, offscreen will fetch URL instead", e);
+        // Route through offscreen document - it has its own CSP allowing unsafe-eval,
+        // which the original Zotero SandboxManager requires.
+        const offscreenReady = await initOffscreenDocument();
+        if (!offscreenReady) {
+          throw new Error("Failed to initialize offscreen document for translator execution");
+        }
+        console.log("JabRef: Routing translator execution through offscreen document for tab %o", tab);
+        const exportMode = await getConversionMode();
+        let pageSnapshot = null;
+        try {
+          await initContentScript(tab.id);
+          pageSnapshot = await browser.tabs.sendMessage(tab.id, { type: "getPageSnapshot" });
+        } catch (e) {
+          console.warn("JabRef: Failed to capture page HTML, offscreen will fetch URL instead", e);
+        }
+        const { takeSnapshots } = await browser.storage.sync.get({ takeSnapshots: false });
+        await browser.runtime.sendMessage({
+          type: "runTranslators",
+          url: tab.url,
+          tabId: tab.id,
+          pageURL: pageSnapshot?.url,
+          html: pageSnapshot?.html,
+          title: pageSnapshot?.title,
+          translatorsInfo: info.translatorsInfo,
+          exportMode,
+          takeSnapshots: Boolean(takeSnapshots),
+        });
+      } finally {
+        stopKeepAlive();
       }
-      const { takeSnapshots } = await browser.storage.sync.get({ takeSnapshots: false });
-      await browser.runtime.sendMessage({
-        type: "runTranslators",
-        url: tab.url,
-        tabId: tab.id,
-        pageURL: pageSnapshot?.url,
-        html: pageSnapshot?.html,
-        title: pageSnapshot?.title,
-        translatorsInfo: info.translatorsInfo,
-        exportMode,
-        takeSnapshots: Boolean(takeSnapshots),
-      });
     }
 
     async function getConversionMode() {
@@ -551,6 +579,9 @@ export default defineBackground({
           console.log(message[1]);
         } else if (Array.isArray(message) && message[0] === "Errors.log") {
           console.log(message[1]);
+        } else if (message.type === "keepAlive") {
+          // No-op; just keeps the service worker alive during long translations
+          return;
         } else {
           console.log(
             "JabRef: other message in background.js: %o",

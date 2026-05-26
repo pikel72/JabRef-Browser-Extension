@@ -43,7 +43,7 @@ function checkConnections({ httpPort }) {
     .catch((error) => {
       status.setAttribute("class", "alert-warning");
       status.textContent =
-        "Native Messaging is unavailable for this Edge extension ID. This is optional; use the HTTP connection below.";
+        "Native Messaging is unavailable for this extension. This is optional; use the HTTP connection below.";
       console.warn("JabRef: Native Messaging check failed", error);
     });
 

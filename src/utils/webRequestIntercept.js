@@ -180,6 +180,8 @@
       return this.replaceHeadersDNR(url, headers);
     },
 
+    _nextRuleID: 1,
+
     replaceHeadersDNR: async function (url, headers) {
       const requestHeaders = headers.map((headerObj) => {
         if (headerObj.name.toLowerCase() === "cookie") {
@@ -199,7 +201,7 @@
         header: "origin",
         operation: "remove",
       });
-      const ruleID = Math.floor(Math.random() * 100000);
+      const ruleID = this._nextRuleID++;
       const rules = [
         {
           id: ruleID,
